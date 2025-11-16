@@ -1,0 +1,201 @@
+<!-- <!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuração da API de Chamadas</title>
+    <style>
+        body { font-family: sans-serif; padding: 2em; max-width: 600px; margin: auto; }
+        input { width: 100%; padding: 8px; margin-bottom: 1em; box-sizing: border-box; }
+        button { padding: 10px 15px; background-color: #007bff; color: white; border: none; cursor: pointer; }
+        #statusMessage { margin-top: 1em; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Configurações da API de Chamadas do WhatsApp</h1>
+    <p>ID da Conta: <strong id="accountId">Carregando...</strong></p>
+    
+    <form id="settingsForm">
+        <label for="companyName">Nome da Empresa:</label>
+        <input type="text" id="companyName" name="companyName" required>
+
+        <label for="whatsappPhoneId">ID do Número de Telefone do WhatsApp:</label>
+        <input type="text" id="whatsappPhoneId" name="whatsapp_phone_id" required>
+
+        <label for="whatsappToken">Token de Acesso Permanente:</label>
+        <input type="password" id="whatsappToken" name="whatsapp_token" required>
+
+        <button type="submit">Salvar Configurações</button>
+    </form>
+    
+    <p id="statusMessage"></p>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const params = new URLSearchParams(window.location.search);
+            const accountId = params.get('accountId');
+            const accountIdElement = document.getElementById('accountId');
+            const statusMessageElement = document.getElementById('statusMessage');
+
+            if (!accountId) {
+                accountIdElement.textContent = 'ERRO';
+                statusMessageElement.textContent = 'ID da conta não encontrado na URL. Adicione "?accountId=SEU_ID" ao final do endereço.';
+                statusMessageElement.style.color = 'red';
+                return;
+            }
+            
+            accountIdElement.textContent = accountId;
+
+            // Busca as configurações já existentes para preencher o formulário
+            try {
+                const response = await fetch(`/api/settings?accountId=${accountId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('companyName').value = data.company_name || '';
+                    document.getElementById('whatsappPhoneId').value = data.whatsapp_phone_id || '';
+                    document.getElementById('whatsappToken').value = data.whatsapp_token || '';
+                    statusMessageElement.textContent = 'Configurações carregadas.';
+                    statusMessageElement.style.color = 'green';
+                } else {
+                    statusMessageElement.textContent = 'Nenhuma configuração encontrada para esta conta. Preencha os campos para criar uma.';
+                    statusMessageElement.style.color = 'orange';
+                }
+            } catch (error) {
+                console.error('Erro ao buscar configurações:', error);
+            }
+
+            // Adiciona o evento para salvar o formulário
+            document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                statusMessageElement.textContent = 'Salvando...';
+                
+                const formData = new FormData(e.target);
+                const data = Object.fromEntries(formData.entries());
+                data.accountId = accountId; // Adiciona o ID da conta aos dados a serem enviados
+
+                try {
+                    const response = await fetch('/api/settings', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+
+                    const result = await response.json();
+                    if (response.ok) {
+                        statusMessageElement.textContent = result.message;
+                        statusMessageElement.style.color = 'green';
+                    } else {
+                        statusMessageElement.textContent = `Erro: ${result.error}`;
+                        statusMessageElement.style.color = 'red';
+                    }
+                } catch (error) {
+                    statusMessageElement.textContent = 'Erro de conexão ao salvar.';
+                    statusMessageElement.style.color = 'red';
+                }
+            });
+        });
+    </script>
+</body>
+</html> -->
+
+// supabase/functions/admin-portal/index.ts
+
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+
+const htmlContent = `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuração de Cliente - API de Chamadas WhatsApp</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 40px auto; padding: 20px; background-color: #f9f9f9; border: 1px solid #ddd; border-radius: 8px; }
+        h1 { color: #1a1a1a; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { background-color: #28a745; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        button:hover { background-color: #218838; }
+        .message { padding: 10px; border-radius: 4px; margin-top: 20px; display: none; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+    <h1>Configuração de Cliente para Chamadas no WhatsApp</h1>
+    <p>Preencha os campos abaixo para configurar ou atualizar as credenciais da sua empresa.</p>
+    <form id="config-form">
+        <div class="form-group">
+            <label for="cnpj">CNPJ (apenas números)</label>
+            <input type="text" id="cnpj" name="cnpj" required>
+        </div>
+        <div class="form-group">
+            <label for="third_party_account_id">ID da Conta (do sistema de terceiro)</label>
+            <input type="text" id="third_party_account_id" name="third_party_account_id" required>
+        </div>
+        <div class="form-group">
+            <label for="whatsapp_phone_id">WhatsApp Phone Number ID</label>
+            <input type="text" id="whatsapp_phone_id" name="whatsapp_phone_id" required>
+        </div>
+        <div class="form-group">
+            <label for="whatsapp_token">WhatsApp Token de Acesso</label>
+            <input type="password" id="whatsapp_token" name="whatsapp_token" required>
+        </div>
+        <div class="form-group">
+            <label for="admin_api_key">Chave de Acesso da API</label>
+            <input type="password" id="admin_api_key" name="admin_api_key" required>
+        </div>
+        <button type="submit">Salvar Configuração</button>
+    </form>
+    <div id="response-message" class="message"></div>
+
+    <script>
+        document.getElementById('config-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+
+            const adminApiKey = data.admin_api_key;
+            delete data.admin_api_key; // Não envia a chave no corpo
+
+            const messageDiv = document.getElementById('response-message');
+            messageDiv.style.display = 'none';
+
+            try {
+                const response = await fetch('/functions/v1/admin-company', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + adminApiKey
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    messageDiv.className = 'message success';
+                    messageDiv.textContent = 'Configuração salva com sucesso!';
+                    form.reset();
+                } else {
+                    messageDiv.className = 'message error';
+                    messageDiv.textContent = 'Erro: ' + (result.error || 'Não foi possível salvar a configuração.');
+                }
+            } catch (error) {
+                messageDiv.className = 'message error';
+                messageDiv.textContent = 'Erro de rede ou falha na comunicação com a API.';
+            }
+            messageDiv.style.display = 'block';
+        });
+    </script>
+</body>
+</html>
+`;
+
+serve(() => {
+  return new Response(htmlContent, {
+    headers: { "Content-Type": "text/html; charset=utf-8" },
+  });
+});
